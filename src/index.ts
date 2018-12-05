@@ -1,27 +1,15 @@
-import { SceneManager } from './sceneManager';
-import * as THREE from 'three';
+import { ViewManager } from './viewManager';
+import { Mesh } from './three/Mesh';
+import { buildCube } from './builder';
 
-let sceneManager = new SceneManager();
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+let view = new ViewManager();
+let cube: Mesh = buildCube([1, 1, 1], 0x123321);
 
-let renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth - 5, window.innerHeight - 5);
-document.body.appendChild(renderer.domElement);
 
-let geometry = new THREE.BoxGeometry(1, 1, 1);
-let material = new THREE.MeshBasicMaterial({color: 0x00ff00});
-let cube = new THREE.Mesh(geometry, material);
-sceneManager.add(cube);
+view.addMesh(cube);
 
-camera.position.z = 5;
+view.registerCallback((seconds) => {
+    cube.rotate([Math.sin(seconds) / 20, Math.cos(seconds) / 30, 0]);
+});
 
-let animate = function () {
-    requestAnimationFrame(animate);
-
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
-
-    renderer.render(sceneManager.getScene(), camera);
-};
-
-animate();
+view.start();
