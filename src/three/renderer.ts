@@ -1,7 +1,6 @@
 import * as THREE from "three";
-import { Scene } from './scene';
 import { TRenderer } from './models';
-import { Camera } from './camera';
+import { Camera, Scene } from './object3D';
 
 export class Renderer {
     private renderer: TRenderer;
@@ -13,6 +12,6 @@ export class Renderer {
     }
 
     render(sceneManager: Scene, camera: Camera) {
-        this.renderer.render(sceneManager.getTScene(), camera.getTCamera());
+        this.renderer.render(sceneManager.getAsset(), camera.getAsset());
     }
 }

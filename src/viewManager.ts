@@ -1,45 +1,49 @@
 import { Renderer } from './three/renderer';
-import { Camera } from './three/camera';
-import { Scene } from './three/scene';
-import { Mesh } from './three/Mesh';
+import { TClock, TObject3D } from './three/models';
+import * as THREE from 'three';
+import { Camera, Object3D, Scene } from './three/object3D';
 
 export class ViewManager {
-    private callbacks: Array<(time: number) => void>;
-    private startTime: number;
+    private callbacks: Array<(time: number, deltaTime: number) => void>;
+    private clock: TClock;
+    private elapsedTime: number;
 
     private renderer: Renderer;
     private scene: Scene;
     private camera: Camera;
 
-    registerCallback(func: (time: number) => void) {
+    registerCallback(func: (time: number, deltaTime: number) => void) {
         this.callbacks.push(func);
     }
 
     constructor() {
         this.callbacks = [];
+        this.clock = new THREE.Clock();
+        this.elapsedTime = 0;
 
         this.renderer = new Renderer();
         this.scene = new Scene();
         this.camera = new Camera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
-        this.camera.setPosition(0, 0, 5);
+        this.camera.setPosition([0, 0, 50]);
     }
 
-    addMesh(mesh: Mesh): void {
-        this.scene.add(mesh);
+    addChild<T extends TObject3D>(obj: Object3D<T>): void {
+        this.scene.addChild(obj);
     }
 
     start() {
         let animate = () => {
             requestAnimationFrame(animate);
 
-            let seconds = (new Date().getTime() - this.startTime) / 1000;
-            this.callbacks.forEach(f => f(seconds));
+            let deltaTime = this.clock.getDelta();
+            this.elapsedTime += deltaTime;
+            this.callbacks.forEach(f => f(this.elapsedTime, deltaTime));
 
             this.renderer.render(this.scene, this.camera);
         };
 
-        this.startTime = new Date().getTime();
+        this.clock.start();
         animate();
     }
 }
