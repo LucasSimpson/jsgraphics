@@ -2,7 +2,7 @@
 
 export type Vec3 = [number, number, number];
 
-export type Color = number;
+export type HexColor = number;
 
 /** THREE JS TYPES **/
 
@@ -32,11 +32,20 @@ export type TLight = TObject3D & {};
 
 export type TMesh = TObject3D & {};
 
+export type TLine = TObject3D & {};
+
 export type TGeometry = {};
 
-export type TMaterial = {};
+export type TMaterial = {
+    color: TColor,
+};
 
 export type TClock = {
     start: () => void,
     getDelta: () => number,
 };
+
+export type TColor = {
+    set: (color: HexColor) => void,
+    asArray: () => [number, number, number],
+}
