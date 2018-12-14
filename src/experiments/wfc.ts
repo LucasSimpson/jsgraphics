@@ -27,8 +27,8 @@ export const run = () => {
 
     let sampleSizeX = 3;
     let sampleSizeY = 3;
-    let outputSizeX = 9;
-    let outputSizeY = 5;
+    let outputSizeX = 10;
+    let outputSizeY = 6;
     let outputPixelSize = 2;
 
     // build sample
@@ -36,13 +36,23 @@ export const run = () => {
     let white = Color.fromHex(0xdddddd);
     let red = Color.fromHex(0xdd2222);
     let green = Color.fromHex(0x22dd22);
-    let sample: ColorTile = [
+    let s1: ColorTile = [
         [black, black, white, black, black],
         [black, black, black, red, black],
         [white, white, white, white, white],
         [black, green, black, black, black],
         [black, black, white, black, black],
     ];
+
+    let s2: ColorTile = [
+        [black, red, white, red, black],
+        [green, black, black, black, red],
+        [white, white, white, white, white],
+        [green, black, black, black, red],
+        [black, green, white, green, black],
+    ];
+
+    let sample = s2;
 
     // build possible tiles from sample
     let possibleTiles: Array<ColorTile> = tilesFromSample(sample, sampleSizeX, sampleSizeY)
@@ -76,8 +86,8 @@ export const run = () => {
                     }),
                     pg: new PixelGrid(
                         view,
-                        -20 + i * (outputPixelSize * (sampleSizeX - 0)),
-                        -20 + j * (outputPixelSize * (sampleSizeY - 0)),
+                        -20 + i * (outputPixelSize * (sampleSizeX + 0.1)),
+                        -20 + j * (outputPixelSize * (sampleSizeY + 0.1)),
                         sampleSizeX,
                         sampleSizeY,
                         outputPixelSize
@@ -195,6 +205,12 @@ const propogateProbabilities = (output: Output): void => {
                     getSurroundingTiles(floodGrid, context.x, context.y).forEach(c => c.do(ft => queue.push(ft)));
                 });
         }
+        console.log('');
+        console.log('***************');
+        console.log('***************');
+        console.log('***************');
+        console.log('');
+
     };
 
     let floodGrid = initFloodGrid(output);
@@ -209,11 +225,11 @@ const propogateProbabilities = (output: Output): void => {
     flood(queue, floodGrid, context => {
         // if we already know stuff, we can skip
         if (context.known) {
-            // console.log('Known at: ', context.x, context.y, ', Skipping');
+            console.log('Skipping ', context.x, context.y);
             return;
         }
 
-        let oddsToMerge: Array<TileOdds> = [];
+        let oddsToMerge: Array<TileOdds>;
         let baseOutputTile: OutputTile = context.tile;
 
         const doTilesEdgesMatch = (baseTile: ColorTile, otherTile: ColorTile, surroundIndex: number): boolean => {
@@ -228,7 +244,6 @@ const propogateProbabilities = (output: Output): void => {
 
                 for (let i = 0; i < s1.length; i++) {
                     if (!areColorsEqual(s1[i], s2[i])) {
-                        // console.log('colors arent equal');
                         return false;
                     }
                 }
@@ -322,13 +337,7 @@ const propogateProbabilities = (output: Output): void => {
             ));
         }).filter(m => m.isPresent()).map(o => o.getOrCrash());
 
-        // console.log('At: ', context.x, context.y, context.surrounding.filter(m => m.map(c => c.known).getOrElse(false)).length);
-        // console.log('Odds: (', oddsToMerge.length, ')');
-        // oddsToMerge.forEach(odds => console.log(odds.map(o => {
-        //     return o;
-        // })));
-
-        let newProbabilities = reNormalize(oddsToMerge.reduce(
+        baseOutputTile.probabilities = reNormalize(oddsToMerge.reduce(
             (final, odds) => {
                 odds.forEach((o, i) => {
                     final[i].probability *= o.probability;
@@ -343,12 +352,9 @@ const propogateProbabilities = (output: Output): void => {
             }),
         ));
 
-        baseOutputTile.probabilities = newProbabilities;
-        context.known = true;
+        console.log('Odds for (', context.x, ',', context.y, '): ', baseOutputTile.probabilities.map(o => o.probability));
 
-        // console.log('Final Odds:');
-        // console.log(newProbabilities);
-        // console.log('\n');
+        context.known = true;
     });
 };
 
@@ -356,9 +362,6 @@ const collapseOutputTile = (tile: OutputTile): OutputTile => {
     let s = 0;
     let p = Math.random();
     let choosen = 0;
-
-    // console.log('Odds from choosen:');
-    // console.log(tile.probabilities.map(p => p.probability));
 
     for (let i = 0; i < tile.probabilities.length; i++) {
         s += tile.probabilities[i].probability;
@@ -375,8 +378,6 @@ const collapseOutputTile = (tile: OutputTile): OutputTile => {
         };
     });
     tile.probabilities[choosen].probability = 1;
-
-    // console.log(tile.probabilities.map(p => p.probability))
 
     return tile;
 };
@@ -437,12 +438,16 @@ const tileFromOutputTile = (outputTile: OutputTile): ColorTile => {
 };
 
 const rotateRight = (tile: ColorTile): ColorTile => {
-    let newTile: ColorTile = Array(tile[0].length).map(_ => Array(tile.length));
+    let dimX = tile.length;
+    let newTile: ColorTile = [];
 
     for (let i = 0; i < tile[0].length; i++) {
-        newTile.push([]);
-        for (let j = 0; j < tile.length; j++) {
-            newTile[i].push(tile[j][i].clone());
+        newTile.push(Array(dimX - 1));
+    }
+
+    for (let i = 0; i < dimX; i++) {
+        for (let j = 0; j < tile[i].length; j++) {
+            newTile[j][dimX - i - 1] = tile[i][j];
         }
     }
 
