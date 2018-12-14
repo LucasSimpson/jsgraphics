@@ -3,8 +3,14 @@ import { TClock, TObject3D, Vec3 } from './three/models';
 import * as THREE from 'three';
 import { AmbientLight, Camera, Object3D, PointLight, Scene } from './three/object3D';
 
+type KeyboardCallback = {
+    key: string;
+    func: (t: number) => void;
+}
+
 export class ViewManager {
     private callbacks: Array<(time: number, deltaTime: number) => void>;
+    private keypressCallbacks: Array<KeyboardCallback>;
     private clock: TClock;
     private elapsedTime: number;
 
@@ -16,8 +22,27 @@ export class ViewManager {
         this.callbacks.push(func);
     }
 
+    every(seconds: number, func: (time: number) => void) {
+        let numCalls: number = 0;
+
+        this.registerCallback((t, dt) => {
+            if (t / seconds > numCalls) {
+                func(t);
+                numCalls += 1;
+            }
+        });
+    }
+
+    onKeyPress(key: string, f: (time: number) => void) {
+        this.keypressCallbacks.push({
+            key: key,
+            func: f,
+        });
+    }
+
     constructor() {
         this.callbacks = [];
+        this.keypressCallbacks = [];
         this.clock = new THREE.Clock();
         this.elapsedTime = 0;
 
@@ -26,6 +51,15 @@ export class ViewManager {
         this.camera = new Camera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
         this.camera.setPosition([0, 0, 50]);
+
+        // create master keypress manager func
+        document.onkeypress = (e) => {
+            this.keypressCallbacks.forEach(callback => {
+                if (e.key === callback.key) {
+                    callback.func(this.elapsedTime);
+                }
+            });
+        }
     }
 
     enableFlying(flySpeed: number) {

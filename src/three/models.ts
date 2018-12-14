@@ -46,6 +46,12 @@ export type TClock = {
 };
 
 export type TColor = {
-    set: (color: HexColor) => void,
+    lerp: (color: TColor, alpha: number) => TColor,
+    add: (color: TColor) => TColor,
+    clone: () => TColor,
+    set: (color: TColor) => void,
     asArray: () => [number, number, number],
+    r: number,
+    g: number,
+    b: number,
 }

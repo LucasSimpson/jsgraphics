@@ -1,7 +1,20 @@
 import { HexColor, TCamera, TGeometry, TLight, TLine, TMaterial, TMesh, TObject3D, TScene, Vec3 } from './models';
 import * as THREE from "three";
+import { Color } from './color';
 
-export class Object3D<T extends TObject3D> {
+export class ThreeJSWrapper<T> {
+    protected asset: T;
+
+    getAsset(): T {
+        return this.asset;
+    }
+
+    setAsset(asset: T) {
+        this.asset = asset;
+    }
+}
+
+export class Object3D<T extends TObject3D> extends ThreeJSWrapper<T>{
     protected asset: T;
 
     rotate(rotation: Vec3): Object3D<T> {
@@ -35,10 +48,6 @@ export class Object3D<T extends TObject3D> {
     addChild<S extends TObject3D>(obj: Object3D<S>) {
         this.asset.add(obj.getAsset());
     }
-
-    getAsset(): T {
-        return this.asset;
-    }
 }
 
 export class Scene extends Object3D<TScene> {
@@ -54,8 +63,8 @@ export class Mesh extends Object3D<TMesh> {
         this.asset = new THREE.Mesh(geometry, material)
     }
 
-    setColor(color: HexColor) {
-        this.material.color.set(color);
+    setColor(color: Color) {
+        this.material.color.set(color.getAsset());
     }
 }
 
