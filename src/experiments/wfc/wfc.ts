@@ -1,8 +1,8 @@
-import { ViewManager } from '../viewManager';
-import { Mesh } from '../three/object3D';
-import { buildCube } from '../builder';
-import { Color } from '../three/color';
-import { Maybe } from '../maybe';
+import { ViewManager } from '../../viewManager';
+import { Line, Mesh } from '../../three/object3D';
+import { buildCube, buildLine } from '../../builder';
+import { Color } from '../../three/color';
+import { Maybe } from '../../maybe';
 
 // type Color = number;
 type Grid<T> = Array<Array<T>>;
@@ -19,23 +19,35 @@ type OutputTile = {
 };
 type Output = Grid<OutputTile>;
 
+const log = console.log;
+
+const DEBUG: boolean = false;
+if (!DEBUG) {
+    console.log = () => {};
+}
+
+
 export const run = () => {
 
     let view = new ViewManager();
     view.enableFlying(1);
     view.basicLighting();
 
-    let sampleSizeX = 3;
-    let sampleSizeY = 3;
-    let outputSizeX = 10;
-    let outputSizeY = 6;
+    let sampleSizeX = 2;
+    let sampleSizeY = 2;
+    let outputSizeX = 25;
+    let outputSizeY = 15;
     let outputPixelSize = 2;
+    let shift: number = 0.05;
 
     // build sample
     let black = Color.fromHex(0x222222);
     let white = Color.fromHex(0xdddddd);
     let red = Color.fromHex(0xdd2222);
     let green = Color.fromHex(0x22dd22);
+    let yellow = Color.fromHex(0xdddd22);
+
+
     let s1: ColorTile = [
         [black, black, white, black, black],
         [black, black, black, red, black],
@@ -52,7 +64,28 @@ export const run = () => {
         [black, green, white, green, black],
     ];
 
-    let sample = s2;
+    let s3: ColorTile = [
+        [white, white, white, white],
+        [white, black, black, black],
+        [white, black, red, black],
+        [white, black, black, black],
+    ];
+
+    let s4: ColorTile = [
+        [black, black, black, black, black, black],
+        [black, black, yellow, black, black, black],
+        [black, yellow, red, yellow, black, black],
+        [black, black, yellow, black, black, black],
+        [black, black, white, black, black, black],
+        [black, black, white, white, black, black],
+        [black, black, black, white, black, black],
+        [black, black, black, black, black, black],
+        [black, black, black, black, black, black],
+        [black, black, black, black, black, black],
+        [black, black, black, black, black, black],
+    ];
+
+    let sample = s3;
 
     // build possible tiles from sample
     let possibleTiles: Array<ColorTile> = tilesFromSample(sample, sampleSizeX, sampleSizeY)
@@ -61,21 +94,21 @@ export const run = () => {
         .concat(tilesFromSample(rotateRight(rotateRight(rotateRight(sample))), sampleSizeX, sampleSizeY));
 
     // show the sample
-    PixelGrid.fromColorGrid(sample, view, -45, 25, 2);
-    PixelGrid.fromColorGrid(rotateRight(sample), view, -45, 10, 2);
-    PixelGrid.fromColorGrid(rotateRight(rotateRight(sample)), view, -45, -5, 2);
-    PixelGrid.fromColorGrid(rotateRight(rotateRight(rotateRight(sample))), view, -45, -20, 2);
+    PixelGrid.fromColorGrid(sample, view, -70, 30, 2);
+    PixelGrid.fromColorGrid(rotateRight(sample), view, -70, 15, 2);
+    PixelGrid.fromColorGrid(rotateRight(rotateRight(sample)), view, -70, 0, 2);
+    PixelGrid.fromColorGrid(rotateRight(rotateRight(rotateRight(sample))), view, -70, -15, 2);
 
     // show possible tiles
     possibleTiles.forEach((tile, i) => {
-        PixelGrid.fromColorGrid(tile, view, i * (sampleSizeX + 1) - 25, 28, 1);
+        PixelGrid.fromColorGrid(tile, view, i * (sampleSizeX + 1) - 40, 34.5, 1);
     });
 
     // create output
     const initOutput = () => {
-        let output: Output = [];
+        let newOutput: Output = [];
         for (let i = 0; i < outputSizeX; i++) {
-            output.push([]);
+            newOutput.push([]);
             for (let j = 0; j < outputSizeY; j++) {
                 let outputTile: OutputTile = {
                     probabilities: possibleTiles.map((pt: ColorTile) => {
@@ -86,8 +119,8 @@ export const run = () => {
                     }),
                     pg: new PixelGrid(
                         view,
-                        -20 + i * (outputPixelSize * (sampleSizeX + 0.1)),
-                        -20 + j * (outputPixelSize * (sampleSizeY + 0.1)),
+                        -35 + i * (outputPixelSize * (sampleSizeX  + shift)),
+                        -30 + j * (outputPixelSize * (sampleSizeY  + shift)),
                         sampleSizeX,
                         sampleSizeY,
                         outputPixelSize
@@ -96,30 +129,98 @@ export const run = () => {
                     y: j,
                 };
 
-                output[i].push(outputTile);
+                newOutput[i].push(outputTile);
             }
         }
 
-        return output;
+        return newOutput;
     };
 
-    let output = initOutput();
-    collapseOutputColors(output);
+    let outputs: Array<Output> = [initOutput()];
+    let outputIndex: number = 0;
+
+    collapseOutputColors(outputs[outputIndex]);
 
     view.onKeyPress('r', t => {
-        output = initOutput();
-        collapseOutputColors(output);
+        flatten(outputs[outputIndex]).forEach(t => t.pg.setShowBorder(false));
+        outputIndex = 0;
+        outputs = [initOutput()];
+        collapseOutputColors(outputs[outputIndex]);
     });
 
     view.onKeyPress('n', t => {
-        if (!allDone(output)) {
-            collapseOutputTile(selectTileForCollaps(output));
-            propogateProbabilities(output);
-            collapseOutputColors(output);
+        if (!allDone(outputs[outputIndex])) {
+            log('Iter...');
+
+            outputIndex += 1;
+            if (outputIndex >= outputs.length) {
+                let newOutput = cloneOutput(outputs[outputIndex - 1]);
+                collapseOutputTile(selectTileForCollaps(newOutput));
+                propogateProbabilities(newOutput);
+
+                if (DEBUG) {
+                    outputs.push(newOutput);
+                } else {
+                    outputIndex -= 1;
+                    outputs[outputIndex] = newOutput;
+                }
+            }
+            collapseOutputColors(outputs[outputIndex]);
+
+            log('Done');
+        } else {
+            log('Nothing to do!');
+        }
+    });
+
+    view.onKeyPress('b', t => {
+        if (outputIndex > 0) {
+            outputIndex -= 1;
+            collapseOutputColors(outputs[outputIndex]);
         }
     });
 
     view.start();
+};
+
+const cloneOutput = (output: Output): Output => {
+    const cloneColorTile = (tile: ColorTile): ColorTile => {
+        let newTile: ColorTile = [];
+
+        for (let i = 0; i < tile.length; i++) {
+            newTile.push([]);
+            for (let j = 0; j < tile[i].length; j++) {
+                newTile[i].push(tile[i][j].clone());
+            }
+        }
+
+        return newTile;
+    };
+
+    const cloneOutputTile = (outputTile: OutputTile): OutputTile => {
+        return {
+            probabilities: outputTile.probabilities.map(pt => {
+                return {
+                    probability: pt.probability,
+                    tile: cloneColorTile(pt.tile),
+                };
+            }),
+            pg: outputTile.pg,
+            x: outputTile.x,
+            y: outputTile.y,
+        };
+    };
+
+    let cloned: Output = [];
+
+    for (let i = 0; i < output.length; i++) {
+        cloned.push([]);
+        for (let j = 0; j < output[i].length; j++) {
+            cloned[i].push(cloneOutputTile(output[i][j]));
+        }
+    }
+
+    return cloned;
 };
 
 const flatten = <T>(grid: Array<Array<T>>): Array<T> => {
@@ -130,6 +231,23 @@ const showGrid = <T>(grid: Grid<T>, toString: (t: T) => string): void => {
     grid.forEach(row => {
        console.log(row.map(toString));
     });
+};
+
+const gridLookup = <T>(grid: Grid<T>, i: number, j: number): Maybe<T> => {
+    if (i < 0 || i >= grid.length || j < 0 || j > grid[0].length) {
+        return Maybe.nothing();
+    } else {
+        return Maybe.of(grid[i][j]);
+    }
+};
+
+const getSurroundingTiles = <T>(grid: Grid<T>, i: number, j: number): Array<Maybe<T>> => {
+    return [
+        gridLookup(grid, i - 1, j),
+        gridLookup(grid, i + 1, j),
+        gridLookup(grid, i, j - 1),
+        gridLookup(grid, i, j + 1),
+    ];
 };
 
 const entropyForProbability = (prob: number): number => {
@@ -149,6 +267,7 @@ const propogateProbabilities = (output: Output): void => {
         surrounding: Array<Maybe<FloodContext<T>>>,
         visited: boolean,
         known: boolean,
+        depth: number,
         x: number,
         y: number,
     }
@@ -165,6 +284,7 @@ const propogateProbabilities = (output: Output): void => {
                     surrounding: [],  // empty initially cause pointers havent been built
                     visited: false,
                     known: false,
+                    depth: Infinity,  // actual real use case wow
                     x: i,
                     y: j,
                 });
@@ -177,34 +297,48 @@ const propogateProbabilities = (output: Output): void => {
         return floodGrid;
     };
 
-    const gridLookup = <T>(grid: Grid<T>, i: number, j: number): Maybe<T> => {
-        if (i < 0 || i >= grid.length || j < 0 || j > grid[0].length) {
-            return Maybe.nothing();
-        } else {
-            return Maybe.of(grid[i][j]);
-        }
-    };
-
-    const getSurroundingTiles = <T>(grid: Grid<T>, i: number, j: number): Array<Maybe<T>> => {
-        return [
-                gridLookup(grid, i - 1, j),
-                gridLookup(grid, i + 1, j),
-                gridLookup(grid, i, j - 1),
-                gridLookup(grid, i, j + 1),
-            ];
-    };
-
     const flood = <T>(queue: Queue<FloodContext<T>>, floodGrid: FloodGrid<T>, f: (c: FloodContext<T>) => void): void => {
-        while(!queue.isEmpty()) {
-            queue
-                .pop()
-                .filter(context => !context.visited)
-                .do(context => {
-                    f(context);
-                    context.visited = true;
-                    getSurroundingTiles(floodGrid, context.x, context.y).forEach(c => c.do(ft => queue.push(ft)));
-                });
+        let floodPoints: Array<FloodContext<T>>;
+        let depth: number = 1;
+        let done = false;
+
+        while(!done) {
+            // clear floodPoints array
+            floodPoints = [];
+
+            // go through everything in the queue, adding flood tiles floodPoints
+            while(!queue.isEmpty()) {
+                queue
+                    .pop()
+                    .filter(context => !context.visited)
+                    .do(context => {
+                        console.log('Exploring (', context.x, ',', context.y, ') at depth of ', depth);
+
+                        context.surrounding = context.surrounding.map(mft => mft.filter(ft => ft.depth < depth));
+                        f(context);
+                        context.visited = true;
+                        floodPoints.push(context);
+                    })
+            }
+
+            // populate queue with new tiles
+            depth += 1;
+            floodPoints.forEach(context => {
+                getSurroundingTiles(floodGrid, context.x, context.y)
+                    .forEach(c => c
+                        .filter(ft => !ft.visited)
+                        .map(ft => {
+                            ft.depth = depth;
+                            return ft;
+                        })
+                        .do(ft => queue.push(ft))
+                    );
+            });
+
+            // if queue is empty after repopulating, were done
+            done = queue.isEmpty();
         }
+
         console.log('');
         console.log('***************');
         console.log('***************');
@@ -219,6 +353,7 @@ const propogateProbabilities = (output: Output): void => {
             .filter(context => outputTileEntropy(context.tile) === 0)
             .map(context => {
                 context.known = true;
+                context.depth = 1;
                 return context;
             })
     );
@@ -227,13 +362,14 @@ const propogateProbabilities = (output: Output): void => {
         if (context.known) {
             console.log('Skipping ', context.x, context.y);
             return;
+        } else {
+            console.log('Flood callback on ', context.x, context.y);
         }
 
         let oddsToMerge: Array<TileOdds>;
         let baseOutputTile: OutputTile = context.tile;
 
         const doTilesEdgesMatch = (baseTile: ColorTile, otherTile: ColorTile, surroundIndex: number): boolean => {
-
             const areColorStripsEqual = (s1: Array<Color>, s2: Array<Color>): boolean => {
                 const areColorsEqual = (c1: Color, c2: Color): boolean => {
                     let a1 = c1.getAsset();
@@ -289,17 +425,26 @@ const propogateProbabilities = (output: Output): void => {
             });
         };
 
+        // base tile probabilities start as flat distribution across options
+        let totalOptions = baseOutputTile.probabilities.length;
+        baseOutputTile.probabilities = baseOutputTile.probabilities.map(pt => {
+            return {
+                tile: pt.tile,
+                probability: 1 / totalOptions,
+            };
+        });
+
         // for each surrounding output tile
         oddsToMerge = context.surrounding.map((mSc, surroundIndex) => {
+
+            // accesing adjecent tile thats off the grid or illegal to access at this time
             if (!mSc.isPresent()) {
                 return Maybe.nothing<TileOdds>();
             }
+            let tile = mSc.getOrCrash().tile;
 
-            let sc = mSc.getOrCrash();
-            if (!sc.known) {
-                return Maybe.nothing<TileOdds>();
-            }
-            let tile = sc.tile;
+            console.log('Checking against ', tile.x, tile.y);
+            console.log(tile.probabilities.map(o => o.probability));
 
             // for each surrounding tile's valid sample
             let intraTileOdds = tile.probabilities.map(p1 => {
@@ -352,7 +497,9 @@ const propogateProbabilities = (output: Output): void => {
             }),
         ));
 
-        console.log('Odds for (', context.x, ',', context.y, '): ', baseOutputTile.probabilities.map(o => o.probability));
+        if (context.depth > 1) {
+            console.log('Odds for (', context.x, ',', context.y, '): (',  baseOutputTile.probabilities.reduce((s, o) => s + o.probability, 0), ')', baseOutputTile.probabilities.map(o => o.probability));
+        }
 
         context.known = true;
     });
@@ -383,14 +530,20 @@ const collapseOutputTile = (tile: OutputTile): OutputTile => {
 };
 
 const selectTileForCollaps = (output: Output): OutputTile => {
-    let orderedOutputs = flatten(output)
-        .map(tile => {
-            return {t: tile, e: outputTileEntropy(tile)};
-        })
-        .filter(p => p.e > 0)
-        .sort((a, b) => a.e - b.e);
+    let known = flatten(output).filter(t => outputTileEntropy(t) === 0);
 
-    return orderedOutputs[0].t;
+    if (known.length === 0) {
+        let ol = flatten(output);
+        return ol[Math.floor(Math.random() * ol.length)];
+    }
+
+    return known
+        .map(t => getSurroundingTiles(output, t.x, t.y))
+        .reduce((arr, s) => arr.concat(s), [])
+        .filter(mt => mt.isPresent())
+        .map(mt => mt.getOrCrash())
+        .filter(t => outputTileEntropy(t) > 0)
+        .sort((a, b) => outputTileEntropy(a) - outputTileEntropy(b))[0]
 };
 
 const allDone = (output: Output): boolean => {
@@ -457,11 +610,13 @@ const rotateRight = (tile: ColorTile): ColorTile => {
 const collapseOutputColors = (output: Output) => {
     output.forEach(tiles => tiles.forEach(outputTile => {
         outputTile.pg.colorsFrom(tileFromOutputTile(outputTile));
+        outputTile.pg.setShowBorder(DEBUG ? outputTileEntropy(outputTile) === 0 : false)
     }));
 };
 
 class PixelGrid {
     private boxes: Array<Array<Mesh>>;
+    private borderLines: Array<Line>;
 
     constructor(vm: ViewManager, x: number, y: number, sx: number, sy: number, scale: number) {
         this.boxes = [];
@@ -482,6 +637,19 @@ class PixelGrid {
                 vm.addChild(cube);
             }
         }
+
+        let bX = x - scale / 2;
+        let bY = y - scale / 2;
+        let raise = 0.05;
+        this.borderLines = [
+            buildLine([bX, bY, raise], [bX + sx * scale, bY, raise], 0xff69b4),
+            buildLine([bX, bY, raise], [bX, bY + sy * scale, raise], 0xff69b4),
+            buildLine([bX + sx * scale, bY + sy * scale, raise], [bX + sx * scale, bY, raise], 0xff69b4),
+            buildLine([bX + sx * scale, bY + sy * scale, raise], [bX, bY + sy * scale, raise], 0xff69b4),
+        ];
+
+        this.borderLines.forEach(l => vm.addChild(l));
+        this.borderLines.forEach(l => l.setVisibility(false));
     }
 
     static fromColorGrid(cg: ColorTile, vm: ViewManager, x: number, y: number, scale: number): PixelGrid {
@@ -511,6 +679,10 @@ class PixelGrid {
 
     setColor(x: number, y: number, color: Color) {
         this.boxes[x][y].setColor(color);
+    }
+
+    setShowBorder(show: boolean) {
+        this.borderLines.forEach(l => l.setVisibility(show));
     }
 }
 

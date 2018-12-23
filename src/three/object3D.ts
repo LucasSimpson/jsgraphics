@@ -66,12 +66,20 @@ export class Mesh extends Object3D<TMesh> {
     setColor(color: Color) {
         this.material.color.set(color.getAsset());
     }
+
+    setVisibility(visibility: boolean) {
+        this.asset.visible = visibility;
+    }
 }
 
 export class Line extends Object3D<TLine> {
     constructor(private geometry: TGeometry, private material: TMaterial) {
         super();
         this.asset = new THREE.Line(geometry, material)
+    }
+
+    setVisibility(visibility: boolean) {
+        this.asset.visible = visibility;
     }
 }
 

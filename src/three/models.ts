@@ -30,9 +30,13 @@ export type TCamera = TObject3D & {};
 
 export type TLight = TObject3D & {};
 
-export type TMesh = TObject3D & {};
+export type TMesh = TObject3D & {
+    visible: boolean,
+};
 
-export type TLine = TObject3D & {};
+export type TLine = TObject3D & {
+    visible: boolean,
+};
 
 export type TGeometry = {};
 

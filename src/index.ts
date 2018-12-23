@@ -1,3 +1,3 @@
-import { run } from './experiments/wfc';
+import { run } from './experiments/wfc/wfc';
 
 run();
